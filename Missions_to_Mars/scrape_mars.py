@@ -1,42 +1,45 @@
-#THIS IS STEP 2
+from splinter import Browser
+from bs4 import BeautifulSoup as bs
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+mars_dict = {}
+def init_browser():
+    # @NOTE: Replace the path with your actual path to the chromedriver
+    executable_path = {"executable_path": ChromeDriverManager().install()}
+    return Browser("chrome", **executable_path, headless=False)
 
 
+def scrape_info():
+    browser = init_browser()
 
-from flask import Flask, render_template, redirect
-from flask_pymongo import PyMongo
-import scrape_costa
+    url = "https://mars.nasa.gov/news/"
+    browser.visit(url)
+    
+    html = browser.html
+    soup = bs(html, 'html.parser')
 
-# Create an instance of Flask
-app = Flask(__name__)
+    stepone = soup.find('ul', class_='item_list')
+    # steptwo = stepone.find('li', class_='slide')
+    newstitle = stepone.find('div', class_='content_title').text
 
-# Use PyMongo to establish Mongo connection
-mongo = PyMongo(app, uri="mongodb://localhost:27017/weather_app")
+    paragraph = stepone.find('div', class_='article_teaser_body').text
 
+    url = "https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/index.html"
+    browser.visit(url) 
 
-# Route to render index.html template using data from Mongo
-@app.route("/")
-def home():
+    html = browser.html
+    soup = bs(html, 'html.parser')
 
-    # Find one record of data from the mongo database
-    destination_data = mongo.db.collection.find_one()
+        
+    featured_image_url= soup.find('img', class_='headerimage fade-in')["src"]
+    feat_img = "https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/" + featured_image_url
 
-    # Return template and data
-    return render_template("index.html", vacation=destination_data)
-
-
-# Route that will trigger the scrape function
-@app.route("/scrape")
-def scrape():
-
-    # Run the scrape function
-    costa_data = scrape_costa.scrape_info()
-
-    # Update the Mongo database using update and upsert=True
-    mongo.db.collection.update({}, costa_data, upsert=True)
-
-    # Redirect back to home page
-    return redirect("/")
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+        # Store data in a dictionary
+    mars_dict = {
+        "feat_img": feat_img,
+        "newstitle": newstitle,
+        "paragraph": paragraph
+    }
+    return mars_dict
+scrape_info()
